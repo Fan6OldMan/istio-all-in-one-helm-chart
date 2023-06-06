@@ -1,0 +1,21 @@
+dependencies:
+- name: base
+  repository: ""
+  version: 1.0.0
+- name: gateway
+  repository: ""
+  version: 1.0.0
+- name: istio-egress
+  repository: ""
+  version: 1.0.0
+- name: istio-ingress
+  repository: ""
+  version: 1.0.0
+- name: istiod
+  repository: ""
+  version: 1.0.0
+- name: kiali-server
+  repository: ""
+  version: 0.0.0
+digest: sha256:27eb82d415afc2a3edef4cec4032bbc2ce5cef9db3ccb95c01fb7decaf046ca0
+generated: "2023-06-02T16:08:51.0677014+03:00"

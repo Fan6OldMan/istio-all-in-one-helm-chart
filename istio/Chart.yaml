@@ -1,0 +1,36 @@
+apiVersion: v1
+appVersion: 1.1.0
+description: Helm chart for all istio components
+icon: https://istio.io/favicons/android-192x192.png
+keywords:
+- istio
+- security
+- sidecarInjectorWebhook
+- mixer
+- pilot
+- galley
+name: istio
+engine: gotpl
+tillerVersion: ">=2.7.2"
+sources:
+- https://github.com/istio/istio
+version: 1.1.0
+dependencies:
+  - name: base
+    version: "1.18.0-rc.0"
+    condition: base.enabled
+  - name: gateway
+    version: "1.0.0"
+    condition: gateway.enabled
+  - name: istio-egress
+    version: "1.0.0"
+    condition: istio-egress.enabled
+  - name: istio-ingress
+    version: "1.0.0"
+    condition: istio-ingress.enabled
+  - name: istiod
+    version: "1.0.0"
+    condition: istiod.enabled
+  - name: kiali-server
+    version: "0.0.0"
+    condition: kiali-server.enabled

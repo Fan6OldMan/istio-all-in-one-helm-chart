@@ -1,0 +1,431 @@
+base:
+  # Enable or Diasable deploy CRDs
+  enabled: true
+  
+  global:
+    # Used to locate istiod.
+    istioNamespace: istio-system
+    istiod:
+      enableAnalysis: false
+    configValidation: true
+    externalIstiod: false
+    remotePilotAddress: ""
+  base:
+    # Used for helm2 to add the CRDs to templates.
+    enableCRDTemplates: false
+
+    # Validation webhook configuration url
+    # For example: https://$remotePilotAddress:15017/validate
+    validationURL: ""
+
+    # For istioctl usage to disable istio config crds in base
+    enableIstioConfigCRDs: true
+
+gateway:
+  # Enable or Diasable deploy Gateway
+  enabled: true
+  
+  replicaCount: 1
+  
+  kind: Deployment
+  
+  rbac:
+  # If enabled, roles will be created to enable accessing certificates from Gateways. This is not needed
+  # when using http://gateway-api.org/.
+    enabled: true
+  
+  service:
+  # Type of service. Set to "None" to disable the service entirely
+    type: LoadBalancer
+    ports:
+    - name: status-port
+      port: 15021
+      protocol: TCP
+      targetPort: 15021
+    - name: http2
+      port: 80
+      protocol: TCP
+      targetPort: 80
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 443
+    annotations: {}
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+    externalTrafficPolicy: ""
+    externalIPs: []
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 2000m
+      memory: 1024Mi
+
+  networkGateway: ""
+
+istiod:
+  # Enable or Diasable deploy Istio
+  enabled: true
+  
+  pilot:
+    autoscaleEnabled: true
+    autoscaleMin: 1
+    autoscaleMax: 5
+    autoscaleBehavior: {}
+    replicaCount: 1
+    rollingMaxSurge: 100%
+    rollingMaxUnavailable: 25%
+  
+  # You can use jwksResolverExtraRootCA to provide a root certificate
+  # in PEM format. This will then be trusted by pilot when resolving
+  # JWKS URIs.
+  jwksResolverExtraRootCA: ""
+
+  # This enables injection of sidecar in all namespaces,
+  # with the exception of namespaces with "istio-injection:disabled" annotation
+  # Only one environment should have this enabled.
+  enableNamespacesByDefault: false
+  
+  istiodRemote:
+    # Sidecar injector mutating webhook configuration clientConfig.url value.
+    # For example: https://$remotePilotAddress:15017/inject
+    # The host should not refer to a service running in the cluster; use a service reference by specifying
+    # the clientConfig.service field instead.
+    injectionURL: ""
+
+    # Sidecar injector mutating webhook configuration path value for the clientConfig.service field.
+    # Override to pass env variables, for example: /inject/cluster/remote/net/network2
+    injectionPath: "/inject"
+  
+  telemetry:
+    enabled: true
+    v2:
+      # For Null VM case now.
+      # This also enables metadata exchange.
+      enabled: true
+      metadataExchange:
+        # Indicates whether to enable WebAssembly runtime for metadata exchange filter.
+        wasmEnabled: false
+      # Indicate if prometheus stats filter is enabled or not
+      prometheus:
+        enabled: true
+        # Indicates whether to enable WebAssembly runtime for stats filter.
+        wasmEnabled: false
+        # overrides stats EnvoyFilter configuration.
+        configOverride:
+          gateway: {}
+          inboundSidecar: {}
+          outboundSidecar: {}
+      # stackdriver filter settings.
+      stackdriver:
+        enabled: false
+        logging: false
+        monitoring: false
+        topology: false # deprecated. setting this to true will have no effect, as this option is no longer supported.
+        disableOutbound: false
+        #  configOverride parts give you the ability to override the low level configuration params passed to envoy filter.
+
+        configOverride: {}
+        #  e.g.
+        #  disable_server_access_logging: false
+        #  disable_host_header_fallback: true
+      # Access Log Policy Filter Settings. This enables filtering of access logs from stackdriver.
+      accessLogPolicy:
+        enabled: false
+        # To reduce the number of successful logs, default log window duration is
+        # set to 12 hours.
+        logWindowDuration: "43200s"
+  global:
+    istioNamespace: istio-system
+  
+  # Enabled by default in master for maximising testing.
+  istiod:
+    enableAnalysis: false
+  
+  # Whether to restrict the applications namespace the controller manages;
+  # If not set, controller watches all namespaces
+  oneNamespace: false
+
+  # Configure whether Operator manages webhook configurations. The current behavior
+  # of Istiod is to manage its own webhook configurations.
+  # When this option is set as true, Istio Operator, instead of webhooks, manages the
+  # webhook configurations. When this option is set as false, webhooks manage their
+  # own webhook configurations.
+  operatorManageWebhooks: false
+
+  # The customized CA address to retrieve certificates for the pods in the cluster.
+  # CSR clients such as the Istio Agent and ingress gateways can use this to specify the CA endpoint.
+  # If not set explicitly, default to the Istio discovery address.
+  caAddress: ""
+
+  # Configure the policy for validating JWT.
+  # Currently, two options are supported: "third-party-jwt" and "first-party-jwt".
+  jwtPolicy: "third-party-jwt"
+
+  # Use the user-specified, secret volume mounted key and certs for Pilot and workloads.
+  mountMtlsCerts: false
+
+  multiCluster:
+    # Set to true to connect two kubernetes clusters via their respective
+    # ingressgateway services when pods in each cluster cannot directly
+    # talk to one another. All clusters should be using Istio mTLS and must
+    # have a shared root CA for this model to work.
+    enabled: false
+    # Should be set to the name of the cluster this installation will run in. This is required for sidecar injection
+    # to properly label proxies
+    clusterName: ""
+  
+  # Network defines the network this cluster belong to. This name
+  # corresponds to the networks in the map of mesh networks.
+  network: ""
+
+istio-ingress:
+  # Enable or Diasable deploy Istio-Ingress
+  enabled: true
+  
+  gateways:
+    istio-ingressgateway:
+      name: istio-ingressgateway
+      labels:
+        app: istio-ingressgateway
+        istio: ingressgateway
+      ports:
+      ## You can add custom gateway ports in user values overrides, but it must include those ports since helm replaces.
+      # Note that AWS ELB will by default perform health checks on the first port
+      # on this list. Setting this to the health check port will ensure that health
+      # checks always work. https://github.com/istio/istio/issues/12503
+      - port: 15021
+        targetPort: 15021
+        name: status-port
+        protocol: TCP
+      - port: 80
+        targetPort: 8080
+        name: http2
+        protocol: TCP
+      - port: 443
+        targetPort: 8443
+        name: https
+        protocol: TCP
+
+      # Scalability tuning
+      # replicaCount: 1
+      rollingMaxSurge: 100%
+      rollingMaxUnavailable: 25%
+      autoscaleEnabled: true
+      autoscaleMin: 1
+      autoscaleMax: 5
+
+      cpu:
+        targetAverageUtilization: 80
+
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+
+      loadBalancerIP: ""
+      loadBalancerSourceRanges: []
+      serviceAnnotations: {}
+
+      # To generate an internal load balancer:
+      # --set serviceAnnotations.cloud.google.com/load-balancer-type=internal
+      #serviceAnnotations:
+      #    cloud.google.com/load-balancer-type: "internal"
+
+      podAnnotations: {}
+      type: LoadBalancer #change to NodePort, ClusterIP or LoadBalancer if need be
+
+      ##############
+      secretVolumes:
+      - name: ingressgateway-certs
+        secretName: istio-ingressgateway-certs
+        mountPath: /etc/istio/ingressgateway-certs
+      - name: ingressgateway-ca-certs
+        secretName: istio-ingressgateway-ca-certs
+        mountPath: /etc/istio/ingressgateway-ca-certs
+
+      customService: false
+      externalTrafficPolicy: ""
+
+      ingressPorts: []
+      additionalContainers: []
+      configVolumes: []
+
+      serviceAccount:
+        # Annotations to add to the service account
+        annotations: {}
+
+      ### Advanced options ############
+      env: {}
+      nodeSelector: {}
+      tolerations: []
+
+      # Specify the pod anti-affinity that allows you to constrain which nodes
+      # your pod is eligible to be scheduled based on labels on pods that are
+      # already running on the node rather than based on labels on nodes.
+      # There are currently two types of anti-affinity:
+      #    "requiredDuringSchedulingIgnoredDuringExecution"
+      #    "preferredDuringSchedulingIgnoredDuringExecution"
+      # which denote "hard" vs. "soft" requirements, you can define your values
+      # in "podAntiAffinityLabelSelector" and "podAntiAffinityTermLabelSelector"
+      # correspondingly.
+      # For example:
+      # podAntiAffinityLabelSelector:
+      # - key: security
+      #   operator: In
+      #   values: S1,S2
+      #   topologyKey: "kubernetes.io/hostname"
+      # This pod anti-affinity rule says that the pod requires not to be scheduled
+      # onto a node if that node is already running a pod with label having key
+      # "security" and value "S1".
+      podAntiAffinityLabelSelector: []
+      podAntiAffinityTermLabelSelector: []
+
+      # whether to run the gateway in a privileged container
+      runAsRoot: false
+
+      # The injection template to use for the gateway. If not set, no injection will be performed.
+      injectionTemplate: ""
+  
+  # The customized CA address to retrieve certificates for the pods in the cluster.
+  # CSR clients such as the Istio Agent and ingress gateways can use this to specify the CA endpoint.
+  caAddress: ""
+
+  # Used to locate istiod.
+  istioNamespace: istio-system
+
+  # Configure the policy for validating JWT.
+  # Currently, two options are supported: "third-party-jwt" and "first-party-jwt".
+  jwtPolicy: "third-party-jwt"
+  
+  # Network defines the network this cluster belong to. This name
+  # corresponds to the networks in the map of mesh networks.
+  network: ""
+
+istio-egress:
+  # Enable or Diasable deploy Istio-Egress
+  enabled: true
+  
+  gateways:
+    istio-egressgateway:
+      name: istio-egressgateway
+      ports:
+      - port: 80
+        targetPort: 8080
+        name: http2
+        protocol: TCP
+      - port: 443
+        name: https
+        targetPort: 8443
+        protocol: TCP
+
+      labels:
+        app: istio-egressgateway
+        istio: egressgateway
+
+      # Scalability tuning
+      # replicaCount: 1
+      rollingMaxSurge: 100%
+      rollingMaxUnavailable: 25%
+      autoscaleEnabled: true
+      autoscaleMin: 1
+      autoscaleMax: 5
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 2000m
+          memory: 1024Mi
+      cpu:
+        targetAverageUtilization: 80
+
+      serviceAnnotations: {}
+      podAnnotations: {}
+      type: ClusterIP # change to NodePort or LoadBalancer if need be
+
+      secretVolumes:
+      - name: egressgateway-certs
+        secretName: istio-egressgateway-certs
+        mountPath: /etc/istio/egressgateway-certs
+      - name: egressgateway-ca-certs
+        secretName: istio-egressgateway-ca-certs
+        mountPath: /etc/istio/egressgateway-ca-certs
+
+      configVolumes: []
+      additionalContainers: []
+
+      serviceAccount:
+        # Annotations to add to the service account
+        annotations: {}
+
+      ### Advanced options ############
+      # TODO: convert to real options, env should not be exposed
+      env: {}
+        # Set this to "external" if and only if you want the egress gateway to
+        # act as a transparent SNI gateway that routes mTLS/TLS traffic to
+        # external services defined using service entries, where the service
+        # entry has resolution set to DNS, has one or more endpoints with
+        # network field set to "external". By default its set to "" so that
+        # the egress gateway sees the same set of endpoints as the sidecars
+        # preserving backward compatibility
+        # ISTIO_META_REQUESTED_NETWORK_VIEW: ""
+
+      nodeSelector: {}
+      tolerations: []
+
+      # Specify the pod anti-affinity that allows you to constrain which nodes
+      # your pod is eligible to be scheduled based on labels on pods that are
+      # already running on the node rather than based on labels on nodes.
+      # There are currently two types of anti-affinity:
+      #    "requiredDuringSchedulingIgnoredDuringExecution"
+      #    "preferredDuringSchedulingIgnoredDuringExecution"
+      # which denote "hard" vs. "soft" requirements, you can define your values
+      # in "podAntiAffinityLabelSelector" and "podAntiAffinityTermLabelSelector"
+      # correspondingly.
+      # For example:
+      # podAntiAffinityLabelSelector:
+      # - key: security
+      #   operator: In
+      #   values: S1,S2
+      #   topologyKey: "kubernetes.io/hostname"
+      # This pod anti-affinity rule says that the pod requires not to be scheduled
+      # onto a node if that node is already running a pod with label having key
+      # "security" and value "S1".
+      podAntiAffinityLabelSelector: []
+      podAntiAffinityTermLabelSelector: []
+
+      # whether to run the gateway in a privileged container
+      runAsRoot: false
+
+      # The injection template to use for the gateway. If not set, no injection will be performed.
+      injectionTemplate: ""
+  # Used to locate istiod.
+
+  istioNamespace: istio-system
+  
+  # Configure the policy for validating JWT.
+  # Currently, two options are supported: "third-party-jwt" and "first-party-jwt".
+  jwtPolicy: "third-party-jwt"
+
+  # Use the user-specified, secret volume mounted key and certs for Pilot and workloads.
+  mountMtlsCerts: false
+
+  # Network defines the network this cluster belong to. This name
+  # corresponds to the networks in the map of mesh networks.
+  network: ""
+
+kiali-server:
+  # Enable or Diasable deploy kiali-server
+  enabled: true
+
+  istio_namespace: "" # default is where Kiali is installed
+
+  login_token:
+    signing_key: ""
